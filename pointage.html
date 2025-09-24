@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suivi de Pointage</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        /* Styles personnalises pour une apparence Material Design */
+        body {
+            font-family: 'Roboto', sans-serif; /* Material Design utilise Roboto */
+            background-color: #f5f5f5; /* Fond gris clair */
+            overflow-x: hidden; /* Empeche le defilement horizontal */
+        }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-weight: 500;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            display: inline-flex; /* Aligne icone et texte */
+            align-items: center;
+            justify-content: center;
+            gap: 8px; /* Espace entre icone et texte */
+        }
+        .btn-primary {
+            background-color: #1976d2; /* Bleu Material */
+            color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        }
+        .btn-primary:hover {
+            background-color: #1565c0;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+        }
+         .btn-secondary {
+            background-color: #607d8b; /* Gris Bleu Material */
+            color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        }
+        .btn-secondary:hover {
+            background-color: #546e7a;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+        }
+         .btn-icon {
+             background-color: #f5f5f5;
+             color: #607d8b;
+             border-radius: 50%; /* Le rend rond */
+             padding: 8px; /* Ajuste le padding pour la taille de l'icone */
+             box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+             position: fixed; /* Le garde fixe par rapport a la fenetre */
+             top: 15px;
+             right: 15px;
+             z-index: 10; /* S'assure qu'il est au-dessus des autres contenus */
+         }
+         .btn-icon:hover {
+             background-color: #e0e0e0;
+         }
+        .editable {
+            cursor: pointer;
+            border-bottom: 1px dashed #ccc;
+            min-width: 60px; /* Assure une largeur minimale pour cliquer */
+            display: inline-block; /* Necessaire pour min-width */
+            padding: 2px 5px;
+        }
+         .editable:hover {
+            background-color: #eeeeee;
+         }
+        input[type="time"], input[type="date"] {
+            border: 1px solid #ccc;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        /* Mise en page responsive avec volet lateral retractable */
+        .container-wrapper {
+            display: flex;
+            max-width: 1400px; /* Ajuster max-width si besoin */
+            margin: 0 auto;
+            padding: 20px;
+            gap: 20px;
+        }
+        .main-content {
+            flex-grow: 1; /* Prend l'espace restant */
+            transition: width 0.3s ease; /* Transition douce quand le volet se cache */
+            width: 100%; /* Largeur par defaut */
+        }
+        .sidebar {
+            flex: 0 0 300px; /* Largeur fixe pour le volet */
+            min-width: 300px; /* S'assure qu'il ne retrecit pas trop */
+            transition: transform 0.3s ease, opacity 0.3s ease, width 0.3s ease, flex-basis 0.3s ease, margin-left 0.3s ease, padding 0.3s ease; /* Ajout de plus de transitions */
+            transform: translateX(0);
+            opacity: 1;
+        }
+        .sidebar.hidden {
+            transform: translateX(100%); /* Deplace le volet hors de l'ecran */
+            opacity: 0;
+            width: 0; /* Reduit la largeur */
+            min-width: 0;
+            flex-basis: 0;
+            overflow: hidden; /* Cache le contenu quand reduit */
+             margin-left: -20px; /* Compense le gap */
+             padding: 0;
+        }
+
+        .container-wrapper.sidebar-hidden .main-content {
+             width: 100%; /* Prend toute la largeur quand le volet est cache */
+             max-width: 100%; /* Permet la pleine largeur */
+        }
+
+
+        /* Style pour les entrees de log */
+        .log-entry {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+         .log-entry.current-log { /* Style pour l'entree courante */
+             background-color: #e3f2fd; /* Bleu tres clair */
+             border-left: 3px solid #1976d2; /* Bordure bleue a gauche */
+             padding-left: 7px; /* Ajuste le padding pour la bordure */
+             margin-left: -10px; /* Compense le padding pour aligner */
+         }
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        .log-date {
+            font-weight: bold;
+            color: #333;
+            cursor: pointer; /* Rend la date cliquable */
+        }
+         .log-date:hover {
+             color: #1976d2; /* Surligne au survol */
+         }
+        .log-time {
+             color: #555;
+             font-size: 0.9em;
+        }
+        .log-total {
+            font-weight: bold;
+            color: #1976d2; /* Bleu Material */
+            margin-top: 5px;
+        }
+        .summary-value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .positive {
+            color: #4caf50; /* Vert Material */
+        }
+        .negative {
+            color: #f44336; /* Rouge Material */
+        }
+
+        /* Media query pour petits ecrans - mise en page en colonne */
+        @media (max-width: 768px) {
+             .container-wrapper {
+                 flex-direction: column;
+             }
+             .sidebar {
+                 flex-basis: auto; /* Permet au volet de prendre toute la largeur */
+                 width: 100%;
+                 min-width: 100%;
+                 transform: none; /* Reinitialise la transformation */
+                 margin-left: 0; /* Reinitialise la marge */
+             }
+             .sidebar.hidden {
+                 transform: none; /* Reinitialise la transformation */
+                 height: 0; /* Reduit la hauteur au lieu de la largeur */
+                 padding: 0;
+                 margin-bottom: -20px; /* Compense le gap */
+                 overflow: hidden;
+             }
+             .btn-icon { /* Ajuste la position du bouton toggle sur petits ecrans */
+                 top: 10px;
+                 right: 10px;
+             }
+        }
+    </style>
+</head>
+<body>
+    <button id="toggle-sidebar-button" class="btn btn-icon" title="Afficher/Masquer l'historique">
+        <i class="material-icons">menu</i> </button>
+
+    <div class="container-wrapper mx-auto p-4 md:p-6 lg:p-8">
+
+        <div class="main-content">
+            <div class="card">
+                <h1 class="text-2xl font-bold mb-4">Pointage du Jour</h1>
+
+                <div class="mb-4">
+                    <span class="font-semibold">Date:</span>
+                    <span id="current-date" class="editable"></span>
+                </div>
+                 <div class="mb-4">
+                    <span class="font-semibold">Localisation:</span>
+                    <span id="location">Chargement...</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Arrivee</label>
+                        <span id="arrival-time" class="editable text-lg">--:--</span>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Debut Pause</label>
+                        <span id="lunch-start-time" class="editable text-lg">--:--</span>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Fin Pause</label>
+                        <span id="lunch-end-time" class="editable text-lg">--:--</span>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Depart</label>
+                        <span id="departure-time" class="editable text-lg">--:--</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <button id="clock-button" class="btn btn-primary flex-grow">Pointer</button>
+                    <button id="end-day-button" class="btn btn-secondary flex-grow">Fin de Journee</button>
+                </div>
+                 <p id="status-message" class="mt-4 text-sm text-gray-600"></p>
+            </div>
+        </div>
+
+        <div id="sidebar" class="sidebar">
+            <div class="card mb-4">
+                <h2 class="text-xl font-semibold mb-2">Solde (30 jours)</h2>
+                <p>Difference / 7h par jour</p>
+                <div id="summary-total" class="summary-value">0h 0m</div>
+            </div>
+
+            <div class="card">
+                <h2 class="text-xl font-semibold mb-2">Historique Recent</h2>
+                <div id="log-history">
+                    <p class="text-gray-500">Aucun historique trouve.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Constantes
+        const DAILY_TARGET_MINUTES = 7 * 60; // 7 heures en minutes
+        const LOG_HISTORY_DAYS_DISPLAY = 30; // Afficher les 30 derniers jours dans le volet
+        const SUMMARY_DAYS = 30; // Calculer le resume sur les 30 derniers jours
+        const LOCAL_STORAGE_KEY = 'workLogs'; // Cle pour localStorage des logs
+        const SIDEBAR_STATE_KEY = 'sidebarHidden'; // Cle pour l'etat du volet
+
+        // Elements DOM
+        const containerWrapper = document.querySelector('.container-wrapper');
+        const currentDateEl = document.getElementById('current-date');
+        const locationEl = document.getElementById('location');
+        const arrivalTimeEl = document.getElementById('arrival-time');
+        const lunchStartTimeEl = document.getElementById('lunch-start-time');
+        const lunchEndTimeEl = document.getElementById('lunch-end-time');
+        const departureTimeEl = document.getElementById('departure-time');
+        const clockButton = document.getElementById('clock-button');
+        const endDayButton = document.getElementById('end-day-button');
+        const logHistoryEl = document.getElementById('log-history');
+        const summaryTotalEl = document.getElementById('summary-total');
+        const statusMessageEl = document.getElementById('status-message');
+        const sidebar = document.getElementById('sidebar');
+        const toggleSidebarButton = document.getElementById('toggle-sidebar-button');
+
+        // Etat global
+        let logs = []; // Tableau pour contenir tous les objets log: { date: 'YYYY-MM-DD', arrival: 'HH:MM', ... }
+        let currentLogDate = null; // La date actuellement affichee/modifiee - Sera definie dans init
+
+        // --- Initialisation ---
+        document.addEventListener('DOMContentLoaded', init);
+
+        /**
+         * Fonction d'initialisation principale
+         * @returns {void}
+         */
+        function init() {
+            console.log("Initialisation de l'application de pointage...");
+            loadLogs(); // Charger les logs en premier
+            loadSidebarState(); // Charger l'etat de visibilite du volet
+
+            // *** NOUVEAU: Determiner la date initiale a afficher ***
+            currentLogDate = determineInitialDate();
+            console.log(`Date initiale a afficher: ${currentLogDate}`);
+
+            displayDay(currentLogDate); // Afficher la date determinee
+            displayLogHistory(); // Afficher l'historique initial
+            calculateAndDisplaySummary(); // Calculer et afficher le resume initial
+            setupEventListeners(); // Configurer les ecouteurs d'evenements
+            getLocation(); // Tenter d'obtenir la localisation
+            console.log("Initialisation terminee.");
+        }
+
+        /**
+         * Determine la date a afficher au chargement de l'application.
+         * Priorise le jour incomplet le plus recent.
+         * Si tous les jours sont complets, affiche aujourd'hui.
+         * @returns {string} La chaine de date ('YYYY-MM-DD') a afficher initialement.
+         */
+        function determineInitialDate() {
+            if (logs.length === 0) {
+                return getCurrentDateString(); // Pas de logs, afficher aujourd'hui
+            }
+            // Les logs sont tries par date decroissante dans loadLogs()
+            const latestIncompleteLog = logs.find(log => !log.departure);
+
+            if (latestIncompleteLog) {
+                // Trouve un jour incomplet, l'afficher
+                return latestIncompleteLog.date;
+            } else {
+                // Tous les jours enregistres sont complets, afficher aujourd'hui
+                // (Ceci assure qu'une nouvelle entree pour aujourd'hui est creee si necessaire via getLogForDate)
+                return getCurrentDateString();
+            }
+        }
+
+        // --- Gestion Local Storage ---
+
+        /**
+         * Charge les logs depuis localStorage.
+         * @returns {void}
+         */
+        function loadLogs() {
+            const storedLogs = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (storedLogs) {
+                try {
+                    logs = JSON.parse(storedLogs);
+                    // S'assurer que les logs sont tries par date decroissante
+                    logs.sort((a, b) => b.date.localeCompare(a.date));
+                    console.log(`Logs charges depuis localStorage: ${logs.length} entrees.`);
+                } catch (e) {
+                    console.error("Erreur lors du parsing des logs depuis localStorage:", e);
+                    logs = [];
+                    if(statusMessageEl) statusMessageEl.textContent = "Erreur: Impossible de charger l'historique.";
+                }
+            } else {
+                logs = [];
+                console.log("Aucun log trouve dans localStorage.");
+            }
+        }
+
+        /**
+         * Sauvegarde le tableau 'logs' dans localStorage.
+         * @returns {void}
+         */
+        function saveLogs() {
+            try {
+                // S'assurer que les logs sont tries avant de sauvegarder
+                 logs.sort((a, b) => b.date.localeCompare(a.date));
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(logs));
+                console.log("Logs sauvegardes dans localStorage.");
+            } catch (e) {
+                 console.error("Erreur lors de la sauvegarde des logs dans localStorage:", e);
+                 if(statusMessageEl) statusMessageEl.textContent = "Erreur: Impossible de sauvegarder les modifications.";
+            }
+        }
+
+        /**
+         * Charge l'etat de visibilite du volet depuis localStorage.
+         * @returns {void}
+         */
+        function loadSidebarState() {
+            const isHidden = localStorage.getItem(SIDEBAR_STATE_KEY) === 'true';
+            // S'assurer que les elements existent avant de les manipuler
+            if (sidebar && containerWrapper && toggleSidebarButton) {
+                if (isHidden) {
+                    sidebar.classList.add('hidden');
+                    containerWrapper.classList.add('sidebar-hidden');
+                    toggleSidebarButton.querySelector('i').textContent = 'menu_open'; // Changer l'icone
+                } else {
+                    sidebar.classList.remove('hidden');
+                    containerWrapper.classList.remove('sidebar-hidden');
+                    toggleSidebarButton.querySelector('i').textContent = 'menu'; // Icone par defaut
+                }
+                console.log(`Etat sidebar charge: ${isHidden ? 'cache' : 'visible'}`);
+            } else {
+                 console.error("Elements Sidebar/Wrapper/Toggle non trouves lors du chargement de l'etat.");
+            }
+        }
+
+        /**
+         * Sauvegarde l'etat de visibilite du volet dans localStorage.
+         * @param {boolean} isHidden - true si le volet est cache, false sinon.
+         * @returns {void}
+         */
+        function saveSidebarState(isHidden) {
+             localStorage.setItem(SIDEBAR_STATE_KEY, isHidden ? 'true' : 'false');
+             console.log(`Etat sidebar sauvegarde: ${isHidden ? 'cache' : 'visible'}`);
+        }
+
+         /**
+         * Trouve ou cree une entree de log pour une date specifique.
+         * @param {string} dateString - La date au format 'YYYY-MM-DD'.
+         * @returns {object | null} L'objet log pour la date donnee. Cree si inexistant. Retourne null si dateString est invalide.
+         */
+        function getLogForDate(dateString) {
+            // Ajouter une validation pour empecher d'operer sur des dates invalides
+            if (!isValidDate(dateString)) {
+                 console.error(`Tentative d'obtenir/creer un log pour une date invalide: ${dateString}`);
+                 return null; // Retourner null pour indiquer l'echec
+            }
+
+            let log = logs.find(l => l.date === dateString);
+            if (!log) {
+                // Si aucun log n'existe pour cette date, en creer un nouveau
+                log = {
+                    date: dateString,
+                    arrival: null,
+                    lunchStart: null,
+                    lunchEnd: null,
+                    departure: null
+                };
+                logs.push(log);
+                // Garder les logs tries apres ajout
+                logs.sort((a, b) => b.date.localeCompare(a.date));
+                console.log(`Nouvelle entree de log creee pour ${dateString}`);
+                 // Sauvegarder immediatement apres la creation d'une nouvelle structure de log
+                 saveLogs();
+            }
+            return log;
+        }
+
+         /**
+         * Sauvegarde une propriete specifique du log pour la date actuellement affichee.
+         * @param {string} property - Le nom de la propriete a sauvegarder (ex: 'arrival', 'lunchStart').
+         * @param {string | null} value - La valeur a sauvegarder (ex: '09:00', null).
+         * @returns {void}
+         */
+        function saveLogProperty(property, value) {
+            const log = getLogForDate(currentLogDate);
+             // S'assurer que le log n'est pas null (pourrait arriver si la date etait invalide)
+             if (!log) {
+                  console.error(`Impossible de sauvegarder la propriete '${property}', log introuvable pour la date ${currentLogDate}`);
+                  if(statusMessageEl) statusMessageEl.textContent = "Erreur: Impossible de sauvegarder pour cette date.";
+                  return;
+             }
+            log[property] = value;
+            saveLogs(); // Sauvegarder tout le tableau logs
+            console.log(`Propriete '${property}' mise a jour a '${value}' pour ${currentLogDate}`);
+            // Rafraichir les affichages qui dependent de ces donnees
+            displayDay(currentLogDate); // Mettre a jour l'affichage principal
+            displayLogHistory(); // Mettre a jour l'historique du volet
+            calculateAndDisplaySummary(); // Mettre a jour le resume du volet
+        }
+
+
+        // --- Gestion Date et Heure ---
+
+        /**
+         * Obtient la date actuelle au format 'YYYY-MM-DD'.
+         * @returns {string} La date actuelle.
+         */
+        function getCurrentDateString() {
+            const today = new Date();
+            return today.toISOString().split('T')[0]; // Methode plus concise
+        }
+
+        /**
+         * Obtient l'heure actuelle au format 'HH:MM'.
+         * @returns {string} L'heure actuelle.
+         */
+        function getCurrentTimeString() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+
+         /**
+         * Formate des minutes en une chaine comme "Xh Ym" ou "-Xh Ym".
+         * @param {number | null} totalMinutes - Le nombre total de minutes.
+         * @returns {string} La chaine de duree formatee ou "N/A".
+         */
+        function formatDuration(totalMinutes) {
+            if (totalMinutes === null || isNaN(totalMinutes)) { // Verification plus robuste
+                return "N/A";
+            }
+            const sign = totalMinutes < 0 ? "-" : "";
+            const absMinutes = Math.abs(totalMinutes);
+            const hours = Math.floor(absMinutes / 60);
+            const minutes = Math.round(absMinutes % 60); // Utiliser round pour des valeurs plus proches
+            return `${sign}${hours}h ${minutes}m`;
+        }
+
+        /**
+         * Calcule la duree totale de travail en minutes pour une entree de log donnee.
+         * @param {object} log - L'objet log pour un jour.
+         * @returns {number | null} La duree en minutes, ou null si le calcul n'est pas possible ou invalide.
+         */
+        function calculateWorkDurationMinutes(log) {
+            if (!log || !log.arrival || !log.departure) {
+                return null; // Pas assez de donnees
+            }
+
+            // Convertit les chaines HH:MM en minutes depuis minuit
+            const timeToMinutes = (timeStr) => {
+                if (!timeStr || !isValidTime(timeStr)) return null; // Retourne null si format invalide
+                 try {
+                     const [hours, minutes] = timeStr.split(':').map(Number);
+                     return hours * 60 + minutes;
+                 } catch (e) {
+                     console.error(`Erreur conversion temps en minutes: ${timeStr}`, e);
+                     return null;
+                 }
+            };
+
+            const arrivalMinutes = timeToMinutes(log.arrival);
+            const departureMinutes = timeToMinutes(log.departure);
+
+             // Verifier si la conversion a echoue
+             if (arrivalMinutes === null || departureMinutes === null) {
+                  console.warn(`Temps invalide detecte pour le calcul de duree pour ${log.date}`);
+                  return null;
+             }
+
+            let lunchMinutes = 0;
+            if (log.lunchStart || log.lunchEnd) {
+                 // Si l'un existe, l'autre devrait idealement exister aussi pour le calcul
+                 if (log.lunchStart && log.lunchEnd) {
+                    const lunchStartMinutes = timeToMinutes(log.lunchStart);
+                    const lunchEndMinutes = timeToMinutes(log.lunchEnd);
+
+                     if (lunchStartMinutes === null || lunchEndMinutes === null) {
+                         console.warn(`Temps de pause invalide pour le calcul de duree pour ${log.date}`);
+                         return null; // Ne peut pas calculer precisement
+                     }
+
+                    if (lunchEndMinutes > lunchStartMinutes) {
+                        lunchMinutes = lunchEndMinutes - lunchStartMinutes;
+                    } else {
+                        // Fin de pause avant le debut est invalide pour le calcul de duree
+                        console.warn(`Fin de pause (${log.lunchEnd}) avant ou egale au debut (${log.lunchStart}) pour ${log.date}`);
+                        return null; // Considerer ce cas comme invalide pour la duree totale
+                    }
+                 } else {
+                      // Donnees de pause incompletes - ne peut pas calculer precisement la duree avec pause
+                      console.warn(`Donnees de pause incompletes pour ${log.date}, la duree de pause sera ignoree.`);
+                      lunchMinutes = 0; // Ou retourner null selon les regles
+                 }
+            }
+
+            if (departureMinutes >= arrivalMinutes) { // Permet depart = arrivee (0 min travail)
+                 const totalDuration = (departureMinutes - arrivalMinutes) - lunchMinutes;
+                 return Math.max(0, totalDuration); // Empeche une duree negative si la pause > temps travail
+            } else {
+                 // Depart avant arrivee est invalide
+                 console.warn(`Depart (${log.departure}) avant arrivee (${log.arrival}) pour ${log.date}`);
+                 return null; // Indiquer donnees invalides
+            }
+        }
+
+
+        // --- Affichage UI ---
+
+        /**
+         * Met a jour la zone d'affichage principale pour une date donnee.
+         * @param {string} dateString - La date a afficher ('YYYY-MM-DD').
+         * @returns {void}
+         */
+        function displayDay(dateString) {
+            // Valider dateString d'abord
+            if (!isValidDate(dateString)) {
+                console.error(`Tentative d'affichage d'une date invalide: ${dateString}`);
+                const recoveryDate = determineInitialDate(); // Tenter de recuperer
+                if (isValidDate(recoveryDate)) {
+                     dateString = recoveryDate;
+                     if(statusMessageEl) statusMessageEl.textContent = "Date invalide, affichage du dernier jour pertinent.";
+                } else {
+                     dateString = getCurrentDateString(); // Fallback absolu
+                     if(statusMessageEl) statusMessageEl.textContent = "Erreur de date, affichage d'aujourd'hui.";
+                }
+                console.warn(`Date invalide fournie a displayDay, retour a ${dateString}`);
+            }
+
+            currentLogDate = dateString; // Mettre a jour l'etat global
+            const log = getLogForDate(dateString); // Obtenir ou creer les donnees de log
+
+             // Gerer le cas ou getLogForDate pourrait retourner null
+             if (!log) {
+                  console.error(`Impossible d'afficher le jour, log introuvable pour ${dateString}`);
+                  if(statusMessageEl) statusMessageEl.textContent = "Erreur lors de l'affichage des donnees pour cette date.";
+                  // Effacer les champs ou montrer un etat d'erreur ?
+                  if(currentDateEl) currentDateEl.textContent = 'Erreur Date';
+                  if(arrivalTimeEl) arrivalTimeEl.textContent = '--:--';
+                  if(lunchStartTimeEl) lunchStartTimeEl.textContent = '--:--';
+                  if(lunchEndTimeEl) lunchEndTimeEl.textContent = '--:--';
+                  if(departureTimeEl) departureTimeEl.textContent = '--:--';
+                  if(clockButton) {
+                      clockButton.disabled = true;
+                      clockButton.textContent = "Erreur";
+                  }
+                  return;
+             }
+
+            console.log(`Affichage du jour: ${dateString}`, log);
+
+            // Mettre a jour les elements DOM s'ils existent
+            if(currentDateEl) currentDateEl.textContent = formatDateForDisplay(dateString);
+            if(arrivalTimeEl) arrivalTimeEl.textContent = log.arrival || '--:--';
+            if(lunchStartTimeEl) lunchStartTimeEl.textContent = log.lunchStart || '--:--';
+            if(lunchEndTimeEl) lunchEndTimeEl.textContent = log.lunchEnd || '--:--';
+            if(departureTimeEl) departureTimeEl.textContent = log.departure || '--:--';
+
+            // Mettre a jour l'etat du bouton Pointer
+            updateClockButtonState(log);
+            if(statusMessageEl) statusMessageEl.textContent = ""; // Effacer les messages de statut precedents
+        }
+
+         /**
+         * Met a jour le texte et l'etat active/desactive du bouton Pointer.
+         * @param {object | null} log - L'objet log pour le jour actuel, ou null.
+         * @returns {void}
+         */
+        function updateClockButtonState(log) {
+             if (!clockButton) return; // Verifier si le bouton existe
+
+             if (!log) { // Gerer le cas ou le log est null
+                  clockButton.textContent = "Erreur";
+                  clockButton.disabled = true;
+                  return;
+             }
+
+            clockButton.disabled = false; // Activer par defaut
+            if (!log.arrival) {
+                clockButton.textContent = "Pointer Arrivee";
+            } else if (!log.lunchStart) {
+                clockButton.textContent = "Debut Pause";
+            } else if (!log.lunchEnd) {
+                clockButton.textContent = "Fin Pause";
+            } else if (!log.departure) {
+                clockButton.textContent = "Pointer Depart";
+            } else {
+                clockButton.textContent = "Journee Terminee";
+                clockButton.disabled = true; // Desactiver si toutes les heures sont remplies
+            }
+        }
+
+        /**
+         * Affiche l'historique recent des logs dans le volet.
+         * @returns {void}
+         */
+        function displayLogHistory() {
+            if (!logHistoryEl) {
+                 console.error("Element log-history introuvable.");
+                 return;
+            }
+            logHistoryEl.innerHTML = ''; // Effacer les entrees precedentes
+            const recentLogs = logs.slice(0, LOG_HISTORY_DAYS_DISPLAY);
+
+            console.log(`Affichage de l'historique: ${recentLogs.length} entrees.`);
+
+            if (recentLogs.length === 0) {
+                logHistoryEl.innerHTML = '<p class="text-gray-500">Aucun historique recent.</p>';
+                return;
+            }
+
+            recentLogs.forEach(log => {
+                const durationMinutes = calculateWorkDurationMinutes(log);
+                const durationStr = formatDuration(durationMinutes); // formatDuration gere null
+
+                const entryDiv = document.createElement('div');
+                entryDiv.className = 'log-entry';
+                // Ajouter une classe si cette entree correspond au jour actuellement affiche
+                if (log.date === currentLogDate) {
+                     entryDiv.classList.add('current-log'); // Utiliser la classe definie en CSS
+                }
+
+                entryDiv.innerHTML = `
+                    <div class="log-date" data-date="${log.date}">${formatDateForDisplay(log.date)}</div>
+                    <div class="log-time">
+                        Arrivee: ${log.arrival || '--:--'} |
+                        Pause: ${log.lunchStart || '--:--'} - ${log.lunchEnd || '--:--'} |
+                        Depart: ${log.departure || '--:--'}
+                    </div>
+                    <div class="log-total">Total: ${durationStr}</div>
+                `;
+                 // Rendre la date cliquable pour charger ce jour
+                 const dateDiv = entryDiv.querySelector('.log-date');
+                 if (dateDiv) {
+                     dateDiv.title = `Afficher le ${formatDateForDisplay(log.date)}`;
+                     dateDiv.addEventListener('click', (e) => {
+                         const dateToLoad = e.target.dataset.date;
+                         console.log(`Clic sur l'historique: ${dateToLoad}`);
+                         if (dateToLoad && isValidDate(dateToLoad)) { // Ajouter validation
+                            displayDay(dateToLoad); // Charger le jour clique
+                            displayLogHistory(); // Rafraichir l'historique pour mettre a jour le surlignage
+                         } else {
+                             console.warn(`Date invalide cliquee dans l'historique: ${dateToLoad}`);
+                         }
+                     });
+                 }
+
+                logHistoryEl.appendChild(entryDiv);
+            });
+        }
+
+        /**
+         * Calcule et affiche le resume du solde d'heures sur les X derniers jours.
+         * @returns {void}
+         */
+        function calculateAndDisplaySummary() {
+             if (!summaryTotalEl) {
+                  console.error("Element summary-total introuvable.");
+                  return;
+             }
+
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - SUMMARY_DAYS);
+            const startDateString = thirtyDaysAgo.toISOString().split('T')[0];
+
+            let totalDifferenceMinutes = 0;
+            let daysCounted = 0;
+
+            logs.forEach(log => {
+                // Inclure seulement les logs dans les SUMMARY_DAYS derniers jours et qui sont complets
+                if (log.date >= startDateString) {
+                    const durationMinutes = calculateWorkDurationMinutes(log);
+                    // Compter seulement si la duree est un nombre valide (pas null/NaN)
+                    if (durationMinutes !== null && !isNaN(durationMinutes)) {
+                        totalDifferenceMinutes += (durationMinutes - DAILY_TARGET_MINUTES);
+                        daysCounted++;
+                    }
+                }
+            });
+
+            console.log(`Calcul du resume (${SUMMARY_DAYS} jours): ${formatDuration(totalDifferenceMinutes)} sur ${daysCounted} jours complets.`);
+
+            const formattedTotalDifference = formatDuration(totalDifferenceMinutes);
+            summaryTotalEl.textContent = formattedTotalDifference;
+
+            // Ajouter code couleur pour solde positif/negatif
+            summaryTotalEl.classList.remove('positive', 'negative');
+            if (totalDifferenceMinutes > 0) {
+                summaryTotalEl.classList.add('positive');
+            } else if (totalDifferenceMinutes < 0) {
+                summaryTotalEl.classList.add('negative');
+            }
+        }
+
+        /**
+         * Formate une date 'YYYY-MM-DD' en 'DD/MM/YYYY' pour l'affichage.
+         * @param {string} dateString - La date a formater.
+         * @returns {string} La date formatee ou un message d'erreur.
+         */
+        function formatDateForDisplay(dateString) {
+             if (!dateString || !isValidDate(dateString)) { // Ajouter validation
+                  console.warn(`Tentative de formater une date invalide: ${dateString}`);
+                  return 'Date Invalide';
+             }
+             try {
+                const [year, month, day] = dateString.split('-');
+                return `${day}/${month}/${year}`;
+             } catch (e) {
+                 console.error("Erreur de formatage de date:", dateString, e);
+                 return dateString; // Fallback
+             }
+        }
+
+        // --- Geolocalisation ---
+
+        /**
+         * Tente d'obtenir la position geographique de l'utilisateur.
+         * @returns {void}
+         */
+        function getLocation() {
+            if (!locationEl) { console.error("Element location introuvable."); return; }
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(showPosition, handleGeoError, { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
+            } else {
+                locationEl.textContent = "Geolocalisation non supportee";
+                console.warn("Geolocalisation non supportee par ce navigateur.");
+            }
+        }
+
+        /**
+         * Callback en cas de succes de la geolocalisation.
+         * @param {GeolocationPosition} position - L'objet position obtenu.
+         * @returns {void}
+         */
+        function showPosition(position) {
+             if (!locationEl) return;
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            locationEl.textContent = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+            console.log(`Position obtenue: Lat ${lat}, Lon ${lon}`);
+        }
+
+        /**
+         * Callback en cas d'erreur de la geolocalisation.
+         * @param {GeolocationPositionError} error - L'objet erreur.
+         * @returns {void}
+         */
+        function handleGeoError(error) {
+             if (!locationEl) return;
+            let message = "Erreur geoloc: "; // Message plus court
+            switch(error.code) {
+                case error.PERMISSION_DENIED: message += "Refusee."; break;
+                case error.POSITION_UNAVAILABLE: message += "Indispo."; break;
+                case error.TIMEOUT: message += "Timeout."; break;
+                default: message += "Inconnue."; break;
+            }
+            locationEl.textContent = message;
+            console.warn(message, error);
+        }
+
+        // --- Configuration des Ecouteurs d'Evenements ---
+
+        /**
+         * Configure tous les ecouteurs d'evenements necessaires.
+         * @returns {void}
+         */
+        function setupEventListeners() {
+             // Verifier l'existence de tous les elements requis
+             const requiredElements = [clockButton, endDayButton, toggleSidebarButton, currentDateEl, arrivalTimeEl, lunchStartTimeEl, lunchEndTimeEl, departureTimeEl];
+             if (requiredElements.some(el => !el)) {
+                  console.error("Un ou plusieurs elements DOM requis pour les ecouteurs sont manquants.");
+                  // Afficher un message a l'utilisateur ?
+                  if(statusMessageEl) statusMessageEl.textContent = "Erreur critique: Impossible d'initialiser l'interface.";
+                  return;
+             }
+
+            clockButton.addEventListener('click', handleClockButtonClick);
+            endDayButton.addEventListener('click', handleEndDayClick);
+            toggleSidebarButton.addEventListener('click', handleToggleSidebarClick);
+
+            // Ajouter les ecouteurs pour les champs editables
+             makeEditable(currentDateEl, 'date');
+             makeEditable(arrivalTimeEl, 'time', 'arrival');
+             makeEditable(lunchStartTimeEl, 'time', 'lunchStart');
+             makeEditable(lunchEndTimeEl, 'time', 'lunchEnd');
+             makeEditable(departureTimeEl, 'time', 'departure');
+             console.log("Ecouteurs d'evenements configures.");
+        }
+
+        // --- Gestionnaires d'Evenements ---
+
+        /**
+         * Gere le clic sur le bouton Pointer. Met a jour le prochain champ horaire disponible.
+         * @returns {void}
+         */
+        function handleClockButtonClick() {
+            const log = getLogForDate(currentLogDate);
+             if (!log) { // Verifier si le log existe pour la date courante
+                  if(statusMessageEl) statusMessageEl.textContent = "Erreur: Impossible de pointer pour cette date.";
+                  console.error(`handleClockButtonClick: Log introuvable pour ${currentLogDate}`);
+                  return;
+             }
+            const currentTime = getCurrentTimeString();
+            let propertyToUpdate = null;
+            let actionMessage = "";
+
+            // Determiner quelle heure pointer ensuite
+            if (!log.arrival) {
+                propertyToUpdate = 'arrival'; actionMessage = "Arrivee";
+            } else if (!log.lunchStart) {
+                propertyToUpdate = 'lunchStart'; actionMessage = "Debut Pause";
+            } else if (!log.lunchEnd) {
+                 // Verifier si la fin de pause est logique
+                 if (log.lunchStart && currentTime < log.lunchStart) {
+                     if(statusMessageEl) statusMessageEl.textContent = "Erreur: La fin de pause ne peut pas etre avant le debut."; return;
+                 }
+                propertyToUpdate = 'lunchEnd'; actionMessage = "Fin Pause";
+            } else if (!log.departure) {
+                 // Verifier si le depart est logique
+                 if (log.arrival && currentTime < log.arrival) {
+                     if(statusMessageEl) statusMessageEl.textContent = "Erreur: Le depart ne peut pas etre avant l'arrivee."; return;
+                 }
+                  if (log.lunchEnd && currentTime < log.lunchEnd) {
+                     if(statusMessageEl) statusMessageEl.textContent = "Erreur: Le depart ne peut pas etre avant la fin de pause."; return;
+                 }
+                propertyToUpdate = 'departure'; actionMessage = "Depart";
+            }
+
+            // Si une propriete a ete identifiee pour mise a jour
+            if (propertyToUpdate) {
+                console.log(`Bouton Pointer clique: Mise a jour de ${propertyToUpdate} a ${currentTime}`);
+                saveLogProperty(propertyToUpdate, currentTime); // Sauvegarder la nouvelle heure
+                 if(statusMessageEl) statusMessageEl.textContent = `${actionMessage} enregistre a ${currentTime}.`; // Message de confirmation
+            } else {
+                 console.log("Bouton Pointer clique: Journee deja terminee.");
+                 if(statusMessageEl) statusMessageEl.textContent = "Toutes les heures pour cette journee sont deja enregistrees.";
+            }
+        }
+
+        /**
+         * Gere le clic sur le bouton Fin de Journee. Finalise le log et affiche aujourd'hui.
+         * @returns {void}
+         */
+        function handleEndDayClick() {
+             const dateBeingFinalized = currentLogDate; // Stocker la date en cours de finalisation
+             const logBeingFinalized = getLogForDate(dateBeingFinalized);
+
+             if (!logBeingFinalized) {
+                  if(statusMessageEl) statusMessageEl.textContent = "Erreur: Impossible de finaliser pour cette date.";
+                  console.error(`handleEndDayClick: Log introuvable pour ${dateBeingFinalized}`);
+                  return;
+             }
+             console.log(`Bouton Fin de Journee clique pour ${dateBeingFinalized}.`);
+
+             // Verifier si la journee est complete avant de finaliser
+             if (!logBeingFinalized.arrival || !logBeingFinalized.departure) {
+                 if(statusMessageEl) statusMessageEl.textContent = "Veuillez enregistrer au moins l'arrivee et le depart avant de finaliser.";
+                 console.warn("Tentative de finaliser une journee incomplete.");
+                 return;
+             }
+
+             // S'assurer que le log est sauvegarde (redondant mais sur)
+             saveLogs();
+
+             // Forcer recalcul et mise a jour de l'affichage *apres* sauvegarde
+             displayLogHistory(); // Rafraichir l'historique
+             calculateAndDisplaySummary(); // Rafraichir le resume
+
+             // Donner un feedback sur la journee finalisee
+             if(statusMessageEl) statusMessageEl.textContent = `Journee du ${formatDateForDisplay(dateBeingFinalized)} finalisee et enregistree.`;
+
+             // *** NOUVELLE LOGIQUE: Determiner quel jour afficher ensuite ***
+             const todayStr = getCurrentDateString();
+             let nextDateToDisplay = todayStr; // Par defaut, aujourd'hui
+
+             // Apres finalisation, on affiche toujours aujourd'hui pour etre pret pour la suite.
+             console.log(`Apres finalisation de ${dateBeingFinalized}, affichage de ${nextDateToDisplay}`);
+             displayDay(nextDateToDisplay); // Afficher aujourd'hui (ou creer son entree si besoin)
+        }
+
+        /**
+         * Gere le clic sur le bouton pour afficher/masquer le volet lateral.
+         * @returns {void}
+         */
+        function handleToggleSidebarClick() {
+             if (!sidebar || !containerWrapper || !toggleSidebarButton) return; // Verification de securite
+            const isHidden = sidebar.classList.toggle('hidden');
+            containerWrapper.classList.toggle('sidebar-hidden', isHidden); // Ajouter/retirer classe sur le conteneur
+            saveSidebarState(isHidden); // Sauvegarder le nouvel etat
+            // Changer l'icone du bouton selon l'etat
+            toggleSidebarButton.querySelector('i').textContent = isHidden ? 'menu_open' : 'menu';
+            toggleSidebarButton.title = isHidden ? "Afficher l'historique" : "Masquer l'historique";
+            console.log(`Sidebar ${isHidden ? 'cachee' : 'affichee'}`);
+        }
+
+
+        /**
+         * Rend un element span editable en le remplacant par un input au clic.
+         * @param {HTMLElement} element - L'element span a rendre editable.
+         * @param {'date' | 'time'} inputType - Le type d'input a creer.
+         * @param {string} [property=null] - La propriete du log a laquelle cet element correspond (ex: 'arrival'). Necessaire pour les inputs heure/date lies aux logs.
+         * @returns {void}
+         */
+        function makeEditable(element, inputType, property = null) {
+            if (!element) return; // Verification si l'element existe
+
+            element.classList.add('editable');
+            element.title = "Cliquez pour modifier"; // Infobulle
+
+            element.addEventListener('click', (e) => {
+                 // Empecher les clics sur des enfants de declencher l'edition / Empecher double edition
+                 if (e.target !== element || element.querySelector('input')) return;
+
+                const isTimeInput = inputType === 'time';
+                const isDateInput = inputType === 'date';
+
+                const originalDisplayValue = element.textContent; // Valeur affichee (DD/MM/YYYY ou HH:MM ou --:--)
+                // Pour input date, toujours utiliser currentLogDate. Pour heure, valeur affichee sauf si '--:--'.
+                const originalDataValue = isDateInput ? currentLogDate : (originalDisplayValue !== '--:--' ? originalDisplayValue : '');
+
+                const input = document.createElement('input');
+                input.type = inputType;
+                input.value = originalDataValue;
+                input.classList.add('p-1', 'border', 'rounded', 'text-sm', 'w-full'); // Style de base, prend toute la largeur du span parent
+
+                // Stocker la date originale en cours d'edition, distincte de currentLogDate qui pourrait changer
+                const dateContextForEdit = currentLogDate;
+
+                element.innerHTML = ''; // Effacer le span
+                element.appendChild(input);
+                input.focus(); // Donner le focus a l'input
+
+                 /**
+                  * Fonction interne pour sauvegarder les changements de l'input.
+                  * @returns {void}
+                  */
+                 const saveChanges = () => {
+                    const newValue = input.value.trim(); // Nettoyer la valeur entree
+                    // Revenir a la structure span avant de mettre a jour le contenu
+                    element.innerHTML = '';
+                    element.textContent = originalDisplayValue; // Remettre temporairement l'original
+
+                    if (isDateInput) {
+                        // Gestion Date: Si la date a change et est valide
+                        if (newValue && newValue !== dateContextForEdit && isValidDate(newValue)) {
+                            console.log(`Date modifiee de ${dateContextForEdit} a ${newValue}`);
+                            displayDay(newValue); // Charger les donnees pour la *nouvelle* date
+                            displayLogHistory(); // Mettre a jour le surlignage de l'historique
+                        } else if (!newValue || !isValidDate(newValue)) {
+                            // Invalide ou effacee, revenir a l'affichage de la date de depart
+                            element.textContent = formatDateForDisplay(dateContextForEdit);
+                            if(statusMessageEl) statusMessageEl.textContent = "Modification de date annulee ou date invalide.";
+                            console.log("Modification de la date annulee ou invalide.");
+                        } else {
+                             // Date valide mais inchangee, restaurer l'affichage pour le contexte original
+                             element.textContent = formatDateForDisplay(dateContextForEdit);
+                        }
+                    } else if (isTimeInput && property) {
+                        // Gestion Heure: Comparer la nouvelle valeur avec la valeur reelle stockee
+                        const logForDateContext = getLogForDate(dateContextForEdit);
+                         if (!logForDateContext) {
+                              console.error(`makeEditable saveChanges: Log introuvable pour ${dateContextForEdit}`);
+                              element.textContent = originalDisplayValue; // Revenir a l'affichage
+                              if(statusMessageEl) statusMessageEl.textContent = "Erreur: Impossible de sauvegarder l'heure.";
+                              return;
+                         }
+
+                        const storedTimeValue = logForDateContext[property] || null; // Obtenir la valeur actuelle du log
+                        const newTimeValue = newValue || null; // Traiter l'input vide comme null
+
+                        if (newTimeValue !== storedTimeValue) { // Si la valeur a reellement change
+                            if (newTimeValue && !isValidTime(newTimeValue)) {
+                                // Format invalide, revenir a l'affichage
+                                element.textContent = originalDisplayValue;
+                                if(statusMessageEl) statusMessageEl.textContent = "Format d'heure invalide (HH:MM).";
+                                console.warn(`Format d'heure invalide entre: ${newValue}`);
+                            } else {
+                                // Heure valide ou heure effacee, la sauvegarder en utilisant le contexte de date original
+                                console.log(`Heure modifiee pour ${property} sur ${dateContextForEdit}: ${newTimeValue}`);
+                                // Si la date editee est celle affichee, saveLogProperty mettra a jour l'UI
+                                if (currentLogDate === dateContextForEdit) {
+                                     saveLogProperty(property, newTimeValue);
+                                } else {
+                                     // Cas limite: modification d'heure sur une date non affichee (via console?)
+                                     logForDateContext[property] = newTimeValue;
+                                     saveLogs(); // Sauvegarder directement
+                                     element.textContent = newTimeValue || '--:--'; // Mettre a jour manuellement le span
+                                     console.warn("Heure modifiee pour une date non affichee actuellement.");
+                                     // Rafraichir historique/resume car donnees modifiees
+                                     displayLogHistory();
+                                     calculateAndDisplaySummary();
+                                }
+                            }
+                        } else {
+                            // Valeur inchangee, s'assurer que l'affichage est correct base sur la valeur stockee
+                            element.textContent = storedTimeValue || '--:--';
+                        }
+                    }
+                 };
+
+                // Sauvegarder a la perte de focus (blur)
+                input.addEventListener('blur', saveChanges);
+                // Sauvegarder a l'appui sur Entree, annuler avec Echap
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') input.blur(); // Declenche le 'blur' pour sauvegarder
+                    else if (e.key === 'Escape') {
+                         input.remove(); // Retirer l'input
+                         element.textContent = originalDisplayValue; // Restaurer le texte original
+                         console.log("Modification annulee avec Echap.");
+                    }
+                });
+            });
+        }
+
+        // --- Validation ---
+
+        /**
+         * Verifie si une chaine est une date valide au format 'YYYY-MM-DD'.
+         * @param {string | null} dateString - La chaine de date a verifier.
+         * @returns {boolean} true si valide, false sinon.
+         */
+        function isValidDate(dateString) {
+            if (!dateString) return false; // Ajout verification null/vide
+            const regex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!regex.test(dateString)) return false;
+            const parts = dateString.split("-");
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10); // 1-12
+            const day = parseInt(parts[2], 10);
+            // Verifier les plages raisonnables
+            if(year < 1970 || year > 2100 || month === 0 || month > 12) return false; // Plage annee ajustee
+            const monthLength = [ 31, (year % 400 === 0 || (year % 100 !== 0 && year % 4 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 ];
+            // Verifier la plage du jour
+            if(day <= 0 || day > monthLength[month - 1]) return false;
+            return true; // Passe les verifications regex et de plage
+        }
+
+        /**
+         * Verifie si une chaine est une heure valide au format 'HH:MM' (24h).
+         * @param {string | null} timeString - La chaine d'heure a verifier.
+         * @returns {boolean} true si valide ou vide/null, false si format invalide.
+         */
+        function isValidTime(timeString) {
+            if (!timeString) return true; // Vide est considere valide (pour effacer)
+            const regex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+            return regex.test(timeString);
+        }
+
+    </script>
+
+</body>
+</html>
